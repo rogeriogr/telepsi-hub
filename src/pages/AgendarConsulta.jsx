@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Adicionado useEffect
 import { supabase } from '../services/supabaseClient';
 
 export default function AgendarConsulta() {
@@ -7,11 +7,27 @@ export default function AgendarConsulta() {
   const [horaInicio, setHoraInicio] = useState('09:00');
   const [horaFim, setHoraFim] = useState('10:00');
   const [linkGerado, setLinkGerado] = useState('');
+  const [psicologoId, setPsicologoId] = useState(null); // Estado para guardar seu ID real
+
+  // Busca o ID do usuário logado assim que a página abre
+  useEffect(() => {
+    const obterUsuario = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setPsicologoId(user.id);
+      }
+    };
+    obterUsuario();
+  }, []);
 
   const handleAgendar = async (e) => {
     e.preventDefault();
 
-    // Converte data e hora para o formato ISO aceito pelo Supabase
+    if (!psicologoId) {
+      alert("Erro: Usuário não identificado. Tente fazer login novamente.");
+      return;
+    }
+
     const dataInicioISO = new Date(`${data}T${horaInicio}:00`).toISOString();
     const dataFimISO = new Date(`${data}T${horaFim}:00`).toISOString();
 
@@ -22,15 +38,15 @@ export default function AgendarConsulta() {
           paciente_nome: paciente,
           data_inicio: dataInicioISO,
           data_fim: dataFimISO,
-          psicologo_id: '86a437c3-7186-4e5a-8b2b-097c36a4667d' // Substitua pelo seu ID real de psicólogo
+          psicologo_id: psicologoId // <--- AGORA USA O SEU ID REAL DO LOGIN
         }
       ])
       .select();
 
     if (error) {
+      console.error(error);
       alert("Erro ao agendar: " + error.message);
     } else {
-      // O Supabase gera o token_acesso automaticamente via Default Value (UUID)
       const token = novoAgendamento[0].token_acesso;
       const urlCompleta = `${window.location.origin}/sala/${token}`;
       setLinkGerado(urlCompleta);
@@ -72,7 +88,7 @@ export default function AgendarConsulta() {
       ) : (
         <div style={{ textAlign: 'center', backgroundColor: '#f0fdf4', padding: '20px', borderRadius: '8px', border: '1px solid #bcf0da' }}>
           <p style={{ color: '#166534', fontWeight: 'bold' }}>Consulta agendada com sucesso!</p>
-          <p style={{ fontSize: '12px', color: '#666', wordBreak: 'break-all' }}>{linkGerado}</p>
+          <p style={{ fontSize: '12px', color: '#666', wordBreak: 'break-all', margin: '10px 0' }}>{linkGerado}</p>
           <button onClick={copiarLink} style={{ padding: '10px 20px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', marginRight: '10px' }}>
             Copiar Link
           </button>
