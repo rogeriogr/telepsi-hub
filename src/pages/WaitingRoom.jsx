@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
 
@@ -8,19 +8,19 @@ export default function WaitingRoom() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(null);
   const [cameraAtiva, setCameraAtiva] = useState(false);
+  const [chamadaIniciada, setChamadaIniciada] = useState(false);
+  const jitsiContainerRef = useRef(null);
 
   useEffect(() => {
     async function validarAcesso() {
       try {
-        setLoading(true);
         const { data, error } = await supabase
           .from('agendamentos')
           .select('*, perfis_psicologos(nome_completo)')
           .eq('token_acesso', token)
-          .maybeSingle(); // Usamos maybeSingle para evitar erro se não achar nada
+          .maybeSingle();
 
-        if (error) throw error;
-        if (!data) {
+        if (error || !data) {
           setErro("Link de consulta inválido ou não encontrado.");
           return;
         }
@@ -31,16 +31,15 @@ export default function WaitingRoom() {
         const agora = new Date();
         const inicio = new Date(data.data_inicio);
         const fim = new Date(data.data_fim);
-        const margemInicio = new Date(inicio.getTime() - 10 * 60000); // 10 min antes
+        const margemInicio = new Date(inicio.getTime() - 10 * 60000);
 
         if (agora < margemInicio) {
-          setErro(`Atenção: Sua consulta está agendada para ${inicio.toLocaleTimeString()}. A sala abrirá 10 minutos antes.`);
+          setErro(`Sua consulta está agendada para ${inicio.toLocaleTimeString()}. A sala abrirá 10 minutos antes.`);
         } else if (agora > fim) {
-          setErro("Esta consulta já expirou (horário de término ultrapassado).");
+          setErro("Esta consulta já expirou.");
         }
       } catch (err) {
-        console.error(err);
-        setErro("Erro ao carregar dados da sala.");
+        setErro("Erro ao carregar sala.");
       } finally {
         setLoading(false);
       }
@@ -48,41 +47,71 @@ export default function WaitingRoom() {
     validarAcesso();
   }, [token]);
 
-  const ligarCamera = async () => {
+  const ligarCameraTeste = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       const videoElement = document.getElementById('preview');
       if (videoElement) videoElement.srcObject = stream;
       setCameraAtiva(true);
     } catch (err) {
-      alert("Permissão de câmera negada ou erro: " + err.message);
+      alert("Erro ao acessar câmera: " + err.message);
     }
+  }
+
+  const iniciarConsulta = () => {
+    setChamadaIniciada(true);
+    
+    // Parar o stream de teste da câmera antes de ligar o Jitsi
+    const videoElement = document.getElementById('preview');
+    if (videoElement && videoElement.srcObject) {
+      videoElement.srcObject.getTracks().forEach(track => track.stop());
+    }
+
+    // Configuração do Jitsi
+    const domain = "meet.jit.si";
+    const options = {
+      roomName: `TelePsiHub-${token}`, // Nome único da sala usando seu token
+      width: '100%',
+      height: 600,
+      parentNode: document.querySelector('#jitsi-container'),
+      userInfo: {
+        displayName: agendamento.paciente_nome // Nome que aparecerá no vídeo
+      },
+      configOverwrite: { startWithAudioMuted: false, startWithVideoMuted: false },
+      interfaceConfigOverwrite: {
+        TOOLBAR_BUTTONS: ['microphone', 'camera', 'chat', 'tileview', 'hangup', 'settings']
+      }
+    };
+    
+    // Inicializa a API do Jitsi
+    new window.JitsiMeetExternalAPI(domain, options);
   };
 
-  if (loading) return <div style={{ padding: '50px', textAlign: 'center' }}>Validando agendamento...</div>;
-  if (erro) return <div style={{ padding: '50px', color: '#ef4444', textAlign: 'center', fontWeight: 'bold' }}>{erro}</div>;
+  if (loading) return <div style={{ padding: '50px', textAlign: 'center' }}>Carregando...</div>;
+  if (erro) return <div style={{ padding: '50px', color: 'red', textAlign: 'center' }}>{erro}</div>;
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '40px', textAlign: 'center', fontFamily: 'sans-serif' }}>
-      <h2>Olá, {agendamento?.paciente_nome}!</h2>
-      <p>Sua consulta com <strong>{agendamento?.perfis_psicologos?.nome_completo || 'seu psicólogo'}</strong> está pronta para começar.</p>
-      
-      <div style={{ backgroundColor: '#1a1a1a', width: '100%', height: '450px', borderRadius: '16px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
-        <video id="preview" autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
-        {!cameraAtiva && (
-          <button 
-            onClick={ligarCamera}
-            style={{ position: 'absolute', padding: '15px 30px', fontSize: '16px', cursor: 'pointer', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '30px', fontWeight: 'bold' }}
-          >
-            Ativar Câmera para Teste
-          </button>
-        )}
-      </div>
+    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px', textAlign: 'center', fontFamily: 'sans-serif' }}>
+      {!chamadaIniciada ? (
+        <>
+          <h2>Olá, {agendamento.paciente_nome}!</h2>
+          <p>Consulta com <strong>{agendamento.perfis_psicologos.nome_completo}</strong></p>
+          
+          <div style={{ backgroundColor: '#000', width: '100%', height: '450px', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            <video id="preview" autoPlay playsInline muted style={{ width: '100%', height: '100%', borderRadius: '12px', transform: 'scaleX(-1)', objectFit: 'cover' }} />
+            {!cameraAtiva && <button onClick={ligarCameraTeste} style={{ position: 'absolute', padding: '15px 30px', cursor: 'pointer', borderRadius: '30px', border: 'none', backgroundColor: '#3b82f6', color: 'white', fontWeight: 'bold' }}>Testar Câmera</button>}
+          </div>
 
-      {cameraAtiva && (
-        <button style={{ padding: '18px 50px', fontSize: '20px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-          Entrar na Chamada de Vídeo
-        </button>
+          {cameraAtiva && (
+            <button onClick={iniciarConsulta} style={{ padding: '20px 60px', fontSize: '20px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' }}>
+              ENTRAR NA CONSULTA AGORA
+            </button>
+          )}
+        </>
+      ) : (
+        <div id="jitsi-container" style={{ width: '100%', height: '600px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f3f4f6' }}>
+          {/* O Jitsi será renderizado aqui dentro */}
+        </div>
       )}
     </div>
   );
