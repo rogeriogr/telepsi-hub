@@ -52,6 +52,14 @@ export default function ProfilePage() {
         color: 'white', 
         textAlign: 'center' 
       }}>
+
+{/* Exemplo de exibição da foto de perfil */}
+<img 
+  src={perfil.avatar_url || 'https://via.placeholder.com/150'} 
+  alt="Foto do Psicólogo" 
+  style={{ width: '150px', height: '150px', borderRadius: '50%', objectFit: 'cover' }} 
+/>
+
         <h1>{perfil.nome_completo}</h1>
         <p>CRP: {perfil.crp}</p>
       </header>
