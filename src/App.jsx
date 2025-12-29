@@ -1,24 +1,41 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import ProfilePage from './pages/ProfilePage';
-import WaitingRoom from './pages/WaitingRoom'; // Importação adicionada
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+
+// Importação das Páginas
+import Login from './pages/Login';
 import AgendarConsulta from './pages/AgendarConsulta';
+import WaitingRoom from './pages/WaitingRoom';
+
+// Importação do Componente de Segurança
+import PrivateRoute from './components/PrivateRoute';
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Página inicial */}
-        <Route path="/" element={<h1>Bem-vindo ao TelePsi Hub</h1>} />
-        
-        {/* Rota da Sala de Espera - Validada por Token */}
+        {/* --- ROTAS PÚBLICAS --- */}
+        {/* O paciente entra aqui via link do WhatsApp */}
         <Route path="/sala/:token" element={<WaitingRoom />} />
         
-        {/* Rota Dinâmica do Perfil do Psicólogo */}
-        <Route path="/:slug" element={<ProfilePage />} />
+        {/* Tela de entrada para o psicólogo */}
+        <Route path="/login" element={<Login />} />
 
-        {/* Rota de Agendar Consulta */}
-        <Route path="/agendar" element={<AgendarConsulta />} />
+        {/* --- ROTAS PROTEGIDAS (Apenas para você) --- */}
+        <Route 
+          path="/agendar" 
+          element={
+            <PrivateRoute>
+              <AgendarConsulta />
+            </PrivateRoute>
+          } 
+        />
+        
+        {/* Redirecionamento Padrão: 
+            Se alguém acessar a raiz "/", mandamos para o Login */}
+        <Route path="/" element={<Navigate to="/login" />} />
+        
+        {/* Rota de segurança para páginas não encontradas */}
+        <Route path="*" element={<div style={{ padding: '50px', textAlign: 'center' }}>Página não encontrada.</div>} />
       </Routes>
     </Router>
   );
