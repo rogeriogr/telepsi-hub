@@ -1,21 +1,19 @@
-import React, { useState, useEffect } from 'react'; // Adicionado useEffect
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 
 export default function AgendarConsulta() {
   const [paciente, setPaciente] = useState('');
+  const [email, setEmail] = useState(''); // Novo estado para o e-mail
   const [data, setData] = useState('');
   const [horaInicio, setHoraInicio] = useState('09:00');
   const [horaFim, setHoraFim] = useState('10:00');
   const [linkGerado, setLinkGerado] = useState('');
-  const [psicologoId, setPsicologoId] = useState(null); // Estado para guardar seu ID real
+  const [psicologoId, setPsicologoId] = useState(null);
 
-  // Busca o ID do usuário logado assim que a página abre
   useEffect(() => {
     const obterUsuario = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setPsicologoId(user.id);
-      }
+      if (user) setPsicologoId(user.id);
     };
     obterUsuario();
   }, []);
@@ -23,10 +21,7 @@ export default function AgendarConsulta() {
   const handleAgendar = async (e) => {
     e.preventDefault();
 
-    if (!psicologoId) {
-      alert("Erro: Usuário não identificado. Tente fazer login novamente.");
-      return;
-    }
+    if (!psicologoId) return alert("Erro: Faça login novamente.");
 
     const dataInicioISO = new Date(`${data}T${horaInicio}:00`).toISOString();
     const dataFimISO = new Date(`${data}T${horaFim}:00`).toISOString();
@@ -36,65 +31,58 @@ export default function AgendarConsulta() {
       .insert([
         {
           paciente_nome: paciente,
+          paciente_email: email, // <--- Agora enviamos o e-mail para o banco
           data_inicio: dataInicioISO,
           data_fim: dataFimISO,
-          psicologo_id: psicologoId // <--- AGORA USA O SEU ID REAL DO LOGIN
+          psicologo_id: psicologoId
         }
       ])
       .select();
 
     if (error) {
-      console.error(error);
       alert("Erro ao agendar: " + error.message);
     } else {
       const token = novoAgendamento[0].token_acesso;
-      const urlCompleta = `${window.location.origin}/sala/${token}`;
-      setLinkGerado(urlCompleta);
+      setLinkGerado(`${window.location.origin}/sala/${token}`);
     }
   };
 
-  const copiarLink = () => {
-    navigator.clipboard.writeText(linkGerado);
-    alert("Link copiado para a área de transferência!");
-  };
-
   return (
-    <div style={{ maxWidth: '500px', margin: '50px auto', padding: '30px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', borderRadius: '12px', fontFamily: 'sans-serif' }}>
-      <h2 style={{ textAlign: 'center', color: '#1e293b' }}>Novo Agendamento</h2>
+    <div style={{ maxWidth: '500px', margin: '50px auto', padding: '30px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', borderRadius: '12px' }}>
+      <h2 style={{ textAlign: 'center' }}>Novo Agendamento</h2>
       
       {!linkGerado ? (
         <form onSubmit={handleAgendar} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <label>Nome do Paciente:
-            <input type="text" value={paciente} onChange={(e) => setPaciente(e.target.value)} required style={{ width: '100%', padding: '10px', marginTop: '5px' }} />
+            <input type="text" value={paciente} onChange={(e) => setPaciente(e.target.value)} required style={{ width: '100%', padding: '10px' }} />
+          </label>
+
+          <label>E-mail do Paciente:
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '100%', padding: '10px' }} />
           </label>
           
           <label>Data da Consulta:
-            <input type="date" value={data} onChange={(e) => setData(e.target.value)} required style={{ width: '100%', padding: '10px', marginTop: '5px' }} />
+            <input type="date" value={data} onChange={(e) => setData(e.target.value)} required style={{ width: '100%', padding: '10px' }} />
           </label>
 
           <div style={{ display: 'flex', gap: '10px' }}>
             <label style={{ flex: 1 }}>Início:
-              <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} required style={{ width: '100%', padding: '10px', marginTop: '5px' }} />
+              <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} required style={{ width: '100%', padding: '10px' }} />
             </label>
             <label style={{ flex: 1 }}>Fim:
-              <input type="time" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} required style={{ width: '100%', padding: '10px', marginTop: '5px' }} />
+              <input type="time" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} required style={{ width: '100%', padding: '10px' }} />
             </label>
           </div>
 
-          <button type="submit" style={{ padding: '15px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px' }}>
+          <button type="submit" style={{ padding: '15px', backgroundColor: '#3b82f6', color: 'white', borderRadius: '8px', cursor: 'pointer' }}>
             GERAR LINK DE CONSULTA
           </button>
         </form>
       ) : (
-        <div style={{ textAlign: 'center', backgroundColor: '#f0fdf4', padding: '20px', borderRadius: '8px', border: '1px solid #bcf0da' }}>
-          <p style={{ color: '#166534', fontWeight: 'bold' }}>Consulta agendada com sucesso!</p>
-          <p style={{ fontSize: '12px', color: '#666', wordBreak: 'break-all', margin: '10px 0' }}>{linkGerado}</p>
-          <button onClick={copiarLink} style={{ padding: '10px 20px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', marginRight: '10px' }}>
-            Copiar Link
-          </button>
-          <button onClick={() => setLinkGerado('')} style={{ padding: '10px 20px', backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
-            Novo Agendamento
-          </button>
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <p>Consulta agendada com sucesso!</p>
+          <button onClick={() => navigator.clipboard.writeText(linkGerado)}>Copiar Link</button>
+          <button onClick={() => setLinkGerado('')}>Novo Agendamento</button>
         </div>
       )}
     </div>
