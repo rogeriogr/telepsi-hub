@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 // Importação das Páginas
 import Login from './pages/Login';
+import Dashboard from './pages/Dashboard'; // <--- ADICIONADO
 import AgendarConsulta from './pages/AgendarConsulta';
 import WaitingRoom from './pages/WaitingRoom';
 
@@ -14,13 +15,19 @@ function App() {
     <Router>
       <Routes>
         {/* --- ROTAS PÚBLICAS --- */}
-        {/* O paciente entra aqui via link do WhatsApp */}
         <Route path="/sala/:token" element={<WaitingRoom />} />
-        
-        {/* Tela de entrada para o psicólogo */}
         <Route path="/login" element={<Login />} />
 
-        {/* --- ROTAS PROTEGIDAS (Apenas para você) --- */}
+        {/* --- ROTAS PROTEGIDAS (Apenas para o Psicólogo) --- */}
+        <Route 
+          path="/dashboard" 
+          element={
+            <PrivateRoute>
+              <Dashboard />
+            </PrivateRoute>
+          } 
+        />
+        
         <Route 
           path="/agendar" 
           element={
@@ -31,8 +38,8 @@ function App() {
         />
         
         {/* Redirecionamento Padrão: 
-            Se alguém acessar a raiz "/", mandamos para o Login */}
-        <Route path="/" element={<Navigate to="/login" />} />
+            Agora mandamos para o Dashboard, que é o seu "home" profissional */}
+        <Route path="/" element={<Navigate to="/dashboard" />} />
         
         {/* Rota de segurança para páginas não encontradas */}
         <Route path="*" element={<div style={{ padding: '50px', textAlign: 'center' }}>Página não encontrada.</div>} />
