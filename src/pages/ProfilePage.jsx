@@ -1,4 +1,5 @@
 // 1. Importamos o que é necessário
+import React from 'react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom'; // Para ler o slug da URL
 import { supabase } from '../services/supabaseClient'; // Sua conexão com o banco
